@@ -1,4 +1,5 @@
-import { _decorator, Component, Node, Sprite, SpriteFrame, UITransform } from 'cc';
+import { _decorator, Component, Node, Sprite, SpriteFrame, Tween, tween, UITransform, Vec3 } from 'cc';
+import { SoundManager } from '../Manager/SoundManager';
 const { ccclass, property } = _decorator;
 
 @ccclass('Card')
@@ -12,8 +13,9 @@ export class Card extends Component {
     @property(Node)
     protected cardBackNode: Node = null;
 
-    protected isFlipped: boolean = false;
     protected cardClickCb: Function = null;
+
+    public isFlipped: boolean = false;
 
     protected _cardId: number = -1;
     public get cardId() {
@@ -23,39 +25,70 @@ export class Card extends Component {
         this._cardId = val;
     }
 
-    init(id: number, sprFrame: SpriteFrame, onClickCb: Function) {
+    protected _cardIndex: number = -1;
+    public get cardIndex() {
+        return this._cardIndex;
+    }
+    public set cardIndex(val: number) {
+        this._cardIndex = val;
+    }
+
+    init(id: number, index: number, sprFrame: SpriteFrame, onClickCb: Function) {
         this.cardId = id;
+        this.cardIndex = index;
         this.sprCardImage.spriteFrame = sprFrame;
         this.cardClickCb = onClickCb;
-        // //scale sprite to fit card size
-        // const uiTransform = this.node.getComponent(UITransform);
-        // const size = uiTransform.contentSize;
-        // this.node.getComponent(UITransform).setContentSize(size.width, size.height);
     }
 
-    public flipCard() {
+    public flipCard(flipCb: Function, isAnim: boolean = true) {
         this.isFlipped = true;
-        this.cardBackNode.active = false;
+        if (isAnim) {
+            this.doFlipCard(false, flipCb);
+        } else {
+            this.cardBackNode.scale = Vec3.ZERO;
+            this.cardImageNode.scale = Vec3.ONE;
+        }
     }
+    
 
     public flipBack() {
-        this.isFlipped = false;
-        this.cardBackNode.active = true;
+        this.doFlipCard(true, () => {
+            this.isFlipped = false;
+        });
     }
 
     public resetCard() {
         this.isFlipped = false;
-        this.cardBackNode.active = true;
+        this.cardBackNode.scale = Vec3.ONE;
     }
 
-    protected doFlipCard(flipComplete: Function) {
+    protected doFlipCard(isBack: boolean, flipComplete: Function) {
+        const targetShow = isBack ? this.cardBackNode : this.cardImageNode;
+        const targetHide = isBack ? this.cardImageNode : this.cardBackNode;
 
-        if (flipComplete) {
-            flipComplete();
-        }
+        targetShow.scale = Vec3.ZERO;
+        targetHide.scale = Vec3.ONE;
+        Tween.stopAllByTarget(targetShow);
+        Tween.stopAllByTarget(targetHide);
+
+        const time = 0.2;
+        tween(targetShow).delay(time / 2)
+            .to(time, { scale: Vec3.ONE }, {easing: 'backOut'})
+            .call(() => {
+                if (flipComplete) {
+                    flipComplete();
+                }
+            })
+            .start();
+        tween(targetHide).to(time, { scale: Vec3.ZERO }, {easing: 'backOut'}).start();
     }
 
     protected onClickCard() {
+        SoundManager.gI().playClick();
+        if (this.isFlipped) {
+            return;
+        }
+
         if (this.cardClickCb) {
             this.cardClickCb(this);
         }

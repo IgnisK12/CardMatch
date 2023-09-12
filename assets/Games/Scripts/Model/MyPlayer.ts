@@ -1,9 +1,10 @@
-import { _decorator, Component, Node, sys, SystemEvent } from 'cc';
+import { _decorator, Component, game, Node, sys, SystemEvent } from 'cc';
+import { LocalStorage } from '../Manager/LocalStorage';
 const { ccclass, property } = _decorator;
 
 @ccclass('MyPlayer')
 export class MyPlayer {
-    public static instance:MyPlayer = null;
+    public static instance: MyPlayer = null;
     public static gI() { 
         if(this.instance == null) {
             this.instance = new MyPlayer();
@@ -17,6 +18,15 @@ export class MyPlayer {
     }
     public set highScore(val: number) {
         this._highScore = val;
+    }
+
+    public updateHighScore(score: number) {
+        if (score > this.highScore) {
+            this.highScore = score;
+            LocalStorage.gI().saveHighScore(score);
+
+            game.emit('update_high_score');
+        }
     }
 }
 

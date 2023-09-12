@@ -1,5 +1,5 @@
 export class Config {
-    public static ROW = 5;
+    public static ROW = 4;
     public static COLUMN = 5;
 
     public static MATCH_POINT = 10;
