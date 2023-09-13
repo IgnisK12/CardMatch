@@ -48,15 +48,20 @@ export class MainController extends Component {
 
     protected onClickBtnPlay() {
         SoundManager.gI().playClick();
-        this.playPanel.node.active = true;
+
         this.playPanel.startNewGame();
+        this.setUIPlayGame();
     }
 
     protected onClickResume() {
         SoundManager.gI().playClick();
-        this.playPanel.node.active = true;
+        
         this.playPanel.resumeGame(this.lastGame);
+        this.setUIPlayGame();
+    }
 
+    protected setUIPlayGame() {
+        this.playPanel.node.active = true;
         this.lastGame = null;
         this.btnResumeGame.active = false;
     }

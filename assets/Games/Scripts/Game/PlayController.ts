@@ -36,15 +36,6 @@ export class PlayController extends Component {
     protected cardWidth = 0;
     protected cardHeight = 0;
 
-    // protected totalCard = 0;
-    // protected numColumn = 0;
-    // protected numRow = 0;
-
-    // protected turnCount: number = 0;
-    // protected comboCount: number = 0;
-    // protected selectedCards: Card[] = [];
-    // protected listPairDone: number[][] = [];
-
     protected _currentScore: number = 0;
     public get currentScore() {
         return this._currentScore;
@@ -87,9 +78,10 @@ export class PlayController extends Component {
 
         if (totalCard / 2 > this.listSprFrameCards.length) {
             totalCard = this.listSprFrameCards.length * 2;
-            this.gameData.numColumn = Math.floor(Math.sqrt(totalCard));
-            this.gameData.numRow = Math.floor(totalCard / this.gameData.numColumn) + 1;
+            this.gameData.numColumn = Math.floor(Math.sqrt(totalCard)) + 1;
+            this.gameData.numRow = Math.round(totalCard / this.gameData.numColumn);
         }
+
         return totalCard;
     }
 
@@ -128,8 +120,8 @@ export class PlayController extends Component {
                 obj.parent = this.cardLayer;
                 obj.active = true;
         
-                const posX = this.padding + this.cardWidth * i + this.padding * i - this.boardSize.width / 2 + this.cardWidth / 2;
-                const posY = this.padding + this.cardHeight * j + this.padding * j - this.boardSize.height / 2 + this.cardHeight / 2;
+                const posX = (this.padding + this.cardWidth * i + this.padding * i + this.cardWidth / 2) - this.boardSize.width / 2;
+                const posY = this.boardSize.height / 2 - (this.padding + this.cardHeight * j + this.padding * j + this.cardHeight / 2);
                 obj.setPosition(posX, posY);
         
                 //set card size
