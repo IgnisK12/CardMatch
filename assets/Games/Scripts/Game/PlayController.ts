@@ -4,7 +4,9 @@ import { Config } from '../Config/Config';
 import { Utils } from '../Utils/Utils';
 import { Card } from '../Component/Card';
 import { MyPlayer } from '../Model/MyPlayer';
-import { LocalStorage } from '../Manager/LocalStorage';
+import { PopupManager } from '../Manager/PopupManager';
+import { BoardData } from '../Model/GameModel';
+
 const { ccclass, property } = _decorator;
 
 @ccclass('PlayController')
@@ -17,16 +19,18 @@ export class PlayController extends Component {
 
     @property(Label)
     protected lbCurrentScore: Label = null;
-
+    @property(Label)
+    protected lbLevel: Label = null;
     @property(Label)
     protected lbTurn: Label = null;
+    @property(Label)
+    protected lbCondition: Label = null;
+
+    @property(Node)
+    protected blockUI: Node = null;
 
     @property(Prefab)
     protected cardPrefab: Prefab = null;
-
-    @property(Node)
-    protected panelGameOver: Node = null;
-
     @property([SpriteFrame])
     protected listSprFrameCards: SpriteFrame[] = [];
 
@@ -46,19 +50,30 @@ export class PlayController extends Component {
     }
 
     protected gameData: BoardData = null;
+    protected backLobbyFunc: Function = null;
 
-    public startNewGame() {
+    // =============== Start New Game =============================
+    public startNewGame(levelGame: number = 1) {
         this.resetGame();
 
-        const totalCard = this.checkTotalCard();
+        const index = levelGame - 1;
+        const totalCard = this.generateRowColumn(index + Config.LEVEL_FIRST_PAIR);
         const shuffleResults = this.shuffleCard(totalCard);
 
         this.gameData.totalCard = totalCard;
         this.gameData.arrayResults = shuffleResults;
 
+        this.gameData.levelGame = levelGame;
+        this.gameData.conditionGames = Config.LEVEL_CONDITIONS[levelGame];
+        if (!this.gameData.conditionGames) {
+            const listKeys = Object.keys(Config.LEVEL_CONDITIONS);
+            this.gameData.conditionGames = Config.LEVEL_CONDITIONS[listKeys[listKeys.length - 1]];
+        }
+
         this.initBoardGame(totalCard);
     }
 
+    // =============== Resume Game =============================
     public resumeGame(obj: any) {
         this.resetGame();
         this.gameData.deserializeObject(obj);
@@ -66,22 +81,48 @@ export class PlayController extends Component {
         this.initBoardGame(this.gameData.totalCard);
     }
 
+    public setBackLobbyCallback(callback: Function) {
+        this.backLobbyFunc = callback;
+    }
+
     //#region Logic Game
-    protected checkTotalCard(): number {
-        this.gameData.numColumn = Config.COLUMN;
-        this.gameData.numRow = Config.ROW;
+    // protected checkTotalCard(): number {
+    //     this.gameData.numColumn = Config.COLUMN;
+    //     this.gameData.numRow = Config.ROW;
         
-        let totalCard = Config.COLUMN * Config.ROW;
-        if (totalCard % 2 != 0) {
-            totalCard -= 1;
-        }
+    //     let totalCard = Config.COLUMN * Config.ROW;
+    //     if (totalCard % 2 != 0) {
+    //         totalCard -= 1;
+    //     }
+
+    //     if (totalCard / 2 > this.listSprFrameCards.length) {
+    //         totalCard = this.listSprFrameCards.length * 2;
+    //         this.gameData.numColumn = Math.floor(Math.sqrt(totalCard)) + 1;
+    //         this.gameData.numRow = Math.round(totalCard / this.gameData.numColumn);
+    //     }
+
+    //     return totalCard;
+    // }
+
+    protected generateRowColumn(numPair: number): number {
+        let totalCard = numPair * 2;
 
         if (totalCard / 2 > this.listSprFrameCards.length) {
             totalCard = this.listSprFrameCards.length * 2;
-            this.gameData.numColumn = Math.floor(Math.sqrt(totalCard)) + 1;
-            this.gameData.numRow = Math.round(totalCard / this.gameData.numColumn);
         }
 
+        const tempRow = Math.floor(Math.sqrt(totalCard));
+        for (let i = tempRow; i < tempRow * 2; i++) {
+            if (totalCard % i == 0) {
+                this.gameData.numRow = i;
+                this.gameData.numColumn = totalCard / i;
+                break;
+            }
+        }
+        if (this.gameData.numColumn == 0) {
+            this.gameData.numRow = 2;
+            this.gameData.numColumn = totalCard / 2;
+        }
         return totalCard;
     }
 
@@ -103,7 +144,9 @@ export class PlayController extends Component {
         const column = this.gameData.numColumn;
         const row = this.gameData.numRow;
 
+        this.lbLevel.string = this.gameData.levelGame.toString();
         this.lbTurn.string = Utils.formatNumber(this.gameData.turnCount);
+        this.lbCondition.string = this.gameData.getConditionValue();
 
         this.boardSize = this.playBoard.contentSize;
         this.cardWidth = this.calculateSize(this.boardSize.width, this.gameData.numColumn);
@@ -184,7 +227,6 @@ export class PlayController extends Component {
                 this.gameData.comboCount++;
                 this.currentScore = this.gameData.calculateScore();
                 this.gameData.listPairDone.push([card_0.cardIndex, card_1.cardIndex]);
-                this.checkFinishGame();
             } else {
                 this.gameData.comboCount = 0;
                 const timeDelay = 0.3;
@@ -196,20 +238,34 @@ export class PlayController extends Component {
                 }).start();
             }
         }
-
+        this.checkFinishGame();
         this.gameData.saveData(false);
     }
 
     protected checkFinishGame() {
         if (this.gameData.isFinishGame()) {
+            const isWin = this.gameData.isGameWin();
+            if (isWin) {
+                SoundManager.gI().playSound(SoundManager.SFX_WIN);
+            } else {
+                SoundManager.gI().playSound(SoundManager.SFX_LOSE);
+            }
             this.doGameOver();
         }
     }
 
     protected doGameOver() {
-        SoundManager.gI().playSound(SoundManager.SFX_WIN);
-        this.panelGameOver.active = true;
+        PopupManager.gI().showPopupGame('PopupGameOver', null, {
+            boardData: this.gameData,
+            closeCb: this.doPlayerChoose.bind(this)
+        });
+
+        this.cardLayer.children.forEach(child => {
+            Tween.stopAllByTarget(child);
+        });
+
         this.gameData.saveData(true);
+        this.blockUI.active = true;
     }
 
     protected resetGame() {
@@ -217,8 +273,8 @@ export class PlayController extends Component {
         this.lbTurn.string = '0';
         this.cardLayer.destroyAllChildren();
 
-        this.panelGameOver.active = false;
         this.gameData = new BoardData();
+        this.blockUI.active = false;
     }
 
     protected getCardByIndex(index: number): Card {
@@ -236,82 +292,27 @@ export class PlayController extends Component {
     //#endregion
 
     //#region Click Handler
-    protected onClickBackLobby() {
-        SoundManager.gI().playClick();
-        this.node.active = false;
+    // -1: Back Lobby, 0: Retry, 1: Next Level
+    protected doPlayerChoose(valueChoose: number) {
         MyPlayer.gI().updateHighScore(this.currentScore);
+        if (valueChoose == -1) {
+            this.node.active = false;
+        } else if (valueChoose == 0) {
+            this.startNewGame(this.gameData.levelGame);
+        } else if (valueChoose == 1) {
+            this.startNewGame(this.gameData.levelGame + 1);
+        }
+    }
+
+    protected onClickBack() {
+        SoundManager.gI().playClick();
+        
+        this.node.active = false;
+        if (this.backLobbyFunc) {
+            this.backLobbyFunc();
+        }
     }
 
     //#endregion
-}
-
-export class BoardData {
-    public totalCard = 0;
-    public numColumn = 0;
-    public numRow = 0;
-
-    public arrayResults: number[] = [];
-
-    public turnCount: number = 0;
-    public comboCount: number = 0;
-    public selectedCards: number[] = [];
-    public listPairDone: number[][] = [];
-
-    public score: number = 0;
-
-    public calculateScore() {
-        const bonusPoint = Config.MATCH_POINT * Config.COMBO_RATE * this.comboCount;
-        this.score = this.score + (Config.MATCH_POINT) + bonusPoint;
-        return this.score;
-    }
-
-    public isFinishGame() {
-        return this.listPairDone.length == this.totalCard / 2;
-    }
-
-    public saveData(isReset: boolean) {
-        if (isReset) {
-            LocalStorage.gI().saveDataGame(null);
-            return
-        }
-        if (this.isFinishGame()) {
-            return;
-        }
-        const obj = this.convertToObject();
-        LocalStorage.gI().saveDataGame(JSON.stringify(obj));
-    }
-
-    public convertToObject() {
-        const obj = {
-            totalCard: this.totalCard,
-            numColumn: this.numColumn,
-            numRow: this.numRow,
-
-            arrayResults: this.arrayResults,
-
-            turnCount: this.turnCount,
-            comboCount: this.comboCount,
-            selectedCards: this.selectedCards,
-            listPairDone: this.listPairDone,
-
-            score: this.score,
-        }
-        return obj;
-    }
-
-    public deserializeObject(obj: any) {
-        this.totalCard = obj.totalCard;
-        this.numColumn = obj.numColumn;
-        this.numRow = obj.numRow;
-
-        this.arrayResults = obj.arrayResults;
-
-        this.turnCount = obj.turnCount;
-        this.comboCount = obj.comboCount;
-        this.selectedCards = obj.selectedCards;
-        this.listPairDone = obj.listPairDone;
-
-        this.score = obj.score;
-    }
 }
 

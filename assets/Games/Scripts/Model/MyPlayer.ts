@@ -4,7 +4,7 @@ const { ccclass, property } = _decorator;
 
 @ccclass('MyPlayer')
 export class MyPlayer {
-    public static instance: MyPlayer = null;
+    private static instance: MyPlayer = null;
     public static gI() { 
         if(this.instance == null) {
             this.instance = new MyPlayer();

@@ -13,6 +13,7 @@ export class SoundManager extends Component {
     public static BG_MUSIC = 'Sounds/bgMusic';
     public static SFX_CLICK = 'Sounds/sfxClick';
     public static SFX_WIN = 'Sounds/sfxWin';
+    public static SFX_LOSE = 'Sounds/sfxLose';
     public static SFX_COMBO_WIN = 'Sounds/sfxComboWin';
 
     protected audioSource: AudioSource = null;

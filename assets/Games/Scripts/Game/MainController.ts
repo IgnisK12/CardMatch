@@ -4,6 +4,8 @@ import { MyPlayer } from '../Model/MyPlayer';
 import { PlayController } from './PlayController';
 import { LocalStorage } from '../Manager/LocalStorage';
 import { Utils } from '../Utils/Utils';
+import { PopupManager } from '../Manager/PopupManager';
+
 const { ccclass, property } = _decorator;
 
 @ccclass('MainController')
@@ -28,6 +30,9 @@ export class MainController extends Component {
         this.updateHighScore();
 
         this.playPanel.node.active = false;
+        this.playPanel.setBackLobbyCallback(() => {
+            this.checkResumeData();
+        })
         game.on('update_high_score', this.updateHighScore, this);
 
         this.checkResumeData();
@@ -46,17 +51,8 @@ export class MainController extends Component {
         this.lbHighScore.string = Utils.formatNumber(MyPlayer.gI().highScore);
     }
 
-    protected onClickBtnPlay() {
-        SoundManager.gI().playClick();
-
-        this.playPanel.startNewGame();
-        this.setUIPlayGame();
-    }
-
-    protected onClickResume() {
-        SoundManager.gI().playClick();
-        
-        this.playPanel.resumeGame(this.lastGame);
+    protected doPlayGame(level: number) {
+        this.playPanel.startNewGame(level);
         this.setUIPlayGame();
     }
 
@@ -65,5 +61,19 @@ export class MainController extends Component {
         this.lastGame = null;
         this.btnResumeGame.active = false;
     }
+
+    //#region Click Handler
+    protected onClickShowPopupLevel() {
+        SoundManager.gI().playClick();
+        PopupManager.gI().showPopupGame('PopupSelectLevel', null, {selectCallback: this.doPlayGame.bind(this)});
+    }
+
+    protected onClickResume() {
+        SoundManager.gI().playClick();
+        
+        this.playPanel.resumeGame(this.lastGame);
+        this.setUIPlayGame();
+    }
+    //#endregion
 }
 

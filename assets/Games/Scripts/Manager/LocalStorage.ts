@@ -27,5 +27,18 @@ export class LocalStorage {
         }
         return null;
     }
+
+    public saveLevelInfo(level: number, data: string) {
+        const key = 'level_info_' + level;
+        localStorage.setItem(key, data);
+    }
+    public getLevelInfo(level: number) {
+        const key = 'level_info_' + level;
+        const val = localStorage.getItem(key);
+        if (val) {
+            return JSON.parse(val);
+        }
+        return null;
+    }
 }
 
